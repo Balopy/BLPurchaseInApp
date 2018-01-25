@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
 
  s.description  = "这是内购非常好的用法，不知道你会不会用，此处略去1000000000字。"
 
-  s.homepage     = "https://github.com/Balopy"
+  s.homepage     = "https://github.com/Balopy/BLPurchaseInApp"
 
 
   s.license      = { :type => "MIT", :file => "FILE_LICENSE" }
