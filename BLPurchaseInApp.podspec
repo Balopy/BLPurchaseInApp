@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.homepage     = "https://github.com/Balopy/BLPurchaseInApp"
 
 
-  s.license      = { :type => "MIT", :file => "FILE_LICENSE" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
 
 
   s.author             = { "Balopy" => "lueng2yuan@163.com" }
@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/Balopy/BLPurchaseInApp.git", :tag => "#{s.version}" }
 
 
-  s.source_files  = "Test/PurchaseInApp/**/*.{h,m}"
+  s.source_files  = "Test/PurchaseInApp/*.{h,m}"
 
 
   # s.frameworks = "StoreKit", "Foundation", "UIKit"
