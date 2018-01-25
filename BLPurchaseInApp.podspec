@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
 
   s.name         = "BLPurchaseInApp"
   s.version      = "1.0.0"
-  s.summary      = "A short description of BLPurchaseInApp."
+  s.summary      = "我做这个内购，让大家方便"
 
  s.description  = "这是内购非常好的用法，不知道你会不会用，此处略去1000000000字。"
 
@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/Balopy/BLPurchaseInApp.git", :tag => "#{s.version}" }
 
 
-  s.source_files  = "PurchaseInApp/**/*.{h,m}"
+  s.source_files  = "Test/PurchaseInApp/**/*.{h,m}"
 
 
   # s.frameworks = "StoreKit", "Foundation", "UIKit"
