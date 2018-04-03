@@ -15,8 +15,10 @@
 @interface BLPurchaseInApp ()<SKProductsRequestDelegate,SKPaymentTransactionObserver>
 
 @property (nonatomic, copy) NSString *productId;
-
+//@property (nonatomic, copy) NSString *address;
 @end
+
+
 
 @implementation BLPurchaseInApp
 
@@ -25,11 +27,13 @@
     return [[self alloc] init];
 }
 
-- (instancetype)init {
+- (instancetype)init
+{
     self = [super init];
     if (self) {
-        //添加监听, 在支付成功后, 移除监听
+        
         [[SKPaymentQueue defaultQueue] addTransactionObserver:self];
+        
     }
     return self;
 }
@@ -41,15 +45,18 @@
     ///如果余额不足走内购
     if([SKPaymentQueue canMakePayments]) {
         
-        [self requestProductData:product];
-    } else {
         
-        NSLog(@"不允许程序内付费");
+        [self requestProductData:product];
+        
+    } else {
+        BLLog(@"不允许程序内付费");
     }
+    
 }
 ///请求商品
-- (void)requestProductData:(NSString *)productId {
-    NSLog(@"-------------请求对应的产品信息----------------");
+- (void)requestProductData:(NSString *)productId
+{
+    BLLog(@"-------------请求对应的产品信息----------------");
     
     NSSet *nsset = [NSSet setWithObjects:productId, nil];
     
@@ -60,67 +67,73 @@
 
 
 ///收到产品返回信息
-- (void)productsRequest:(SKProductsRequest *)request didReceiveResponse:(SKProductsResponse *)response {
-  
-    NSLog(@"--------------收到产品反馈消息---------------------");
+- (void)productsRequest:(SKProductsRequest *)request didReceiveResponse:(SKProductsResponse *)response
+{
+    BLLog(@"--------------收到产品反馈消息---------------------");
     NSArray *product = response.products;
     
-    NSLog(@"invalidProductIdentifiers:%@", response.invalidProductIdentifiers);
+    BLLog(@"invalidProductIdentifiers:%@", response.invalidProductIdentifiers);
     
-    NSLog(@"产品付费数量:%lu",(unsigned long)[product count]);
+    BLLog(@"产品付费数量:%lu",(unsigned long)[product count]);
     
     SKProduct *skProduct = nil;
     for (SKProduct *tmp in product) {
-        NSLog(@"--------%@", [tmp description]);
-        NSLog(@"--------%@", [tmp localizedTitle]);
-        NSLog(@"--------%@", [tmp localizedDescription]);
-        NSLog(@"--------%@", [tmp price]);
-        NSLog(@"--------%@", [tmp productIdentifier]);
+        BLLog(@"--------%@", [tmp description]);
+        BLLog(@"--------%@", [tmp localizedTitle]);
+        BLLog(@"--------%@", [tmp localizedDescription]);
+        BLLog(@"--------%@", [tmp price]);
+        BLLog(@"--------%@", [tmp productIdentifier]);
         
-        if([tmp.productIdentifier isEqualToString:self.productId]){
+        if([tmp.productIdentifier isEqualToString:self.productId])
+        {
             skProduct = tmp;
         }
     }
     
     SKPayment *payment = [SKPayment paymentWithProduct:skProduct];
     
-    NSLog(@"发送购买请求");
+    BLLog(@"发送购买请求");
     [[SKPaymentQueue defaultQueue] addPayment:payment];
 }
 
 ///请求失败
-- (void)request:(SKRequest *)request didFailWithError:(NSError *)error {
-    NSLog(@"------------------错误-----------------:%@", error);
+- (void)request:(SKRequest *)request didFailWithError:(NSError *)error
+{
+    if (self.failTransaction) {
+        self.failTransaction (@"网络连接失败");
+    }
+    BLLog(@"------------------错误-----------------:%@", error);
 }
 
-- (void)requestDidFinish:(SKRequest *)request {
-    NSLog(@"------------反馈信息结束-----------------");
+- (void)requestDidFinish:(SKRequest *)request
+{
+    BLLog(@"------------反馈信息结束-----------------");
 }
 
 ///监听购买结果
-- (void)paymentQueue:(SKPaymentQueue *)queue updatedTransactions:(NSArray *)transaction {
-  
-    for(SKPaymentTransaction *tran in transaction) {
-       
-        switch (tran.transactionState){
+- (void)paymentQueue:(SKPaymentQueue *)queue updatedTransactions:(NSArray *)transaction
+{
+    for(SKPaymentTransaction *tran in transaction)
+    {
+        switch (tran.transactionState)
+        {
             case SKPaymentTransactionStatePurchased:
-             
-                NSLog(@"交易完成");
+                BLLog(@"交易完成");
                 [self completeTransaction:tran];
                 
                 break;
             case SKPaymentTransactionStatePurchasing:
-               
-                NSLog(@"商品添加进列表");
+                BLLog(@"商品添加进列表");
+                
                 break;
             case SKPaymentTransactionStateRestored:
-              
-                NSLog(@"已经购买过商品");
+                BLLog(@"已经购买过商品");
                 [self restoreTransaction:tran];
+                
                 break;
             case SKPaymentTransactionStateFailed: {
-              
-                NSLog(@"打印错误日志---%@",tran.error.description);
+                BLLog(@"打印错误日志---%@",tran.error.description);
+                
                 [self failedTransaction:tran];
             } break;
             default:
@@ -132,18 +145,22 @@
 
 
 
-/*! 
-* 交易结束
-* 交易结束需要向服务端验证 iTunes store 产生的票据信息, 因为在测试阶段及上线审核时, 会有沙箱测试账号,
-* 所以, 要验证两种情况, 本地做一次验证, 根据iTunes store 返回的信息, 向服务端发送 验证信息, 服务端进行二次验证,
-* 我这里, 是向服务端, 发送了测试或线上的验证地址#reciept, 服务端,不需要在判断是不是沙盒测试, 还是线上, 直接验证.
-*/
+///交易结束
 - (void)completeTransaction:(SKPaymentTransaction *)transaction {
     //https://developer.apple.com/library/content/releasenotes/General/ValidateAppStoreReceipt/Chapters/ValidateRemotely.html
-    //系统IOS7.0以上获取支付验证凭证的方式应该改变，切验证返回的数据结
-    //得到的凭证只能使用 base64解码,规则这么订的
     
+    [self requestReceipt:AppStore];
+    [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+}
+
+- (void)requestReceipt:(NSString *)url {
+    
+    //系统IOS7.0以上获取支付验证凭证的方式应该改变，切验证返回的数据结
+    //得到的凭证只能使用 base64解码,规则这么定的
+    
+    //file:///private/var/mobile/Containers/Data/Application/4F044402-6EFB-4C89-ACBB-2F0BC95664DD/StoreKit/sandboxReceipt
     NSURL *receiptURL = [[NSBundle mainBundle] appStoreReceiptURL];
+
     NSData *receipt = [NSData dataWithContentsOfURL:receiptURL];
     
     if (!receipt) {
@@ -154,17 +171,14 @@
         }
         return;
     }
-   
-    // Create the JSON object that describes the request
+    
     NSString *receiptCode = [receipt base64EncodedStringWithOptions:0];
     NSError *error;
-    NSDictionary *requestContents = @{
-                                      @"receipt-data": receiptCode
-                                      };
+    NSDictionary *requestContents = @{ @"receipt-data": receiptCode };
     NSData *requestData = [NSJSONSerialization dataWithJSONObject:requestContents options:0 error:&error];
-
+    
     // Create a POST request with the receipt data.
-    NSURL *storeURL = [NSURL URLWithString:AppStore];
+    NSURL *storeURL = [NSURL URLWithString:url];
     NSMutableURLRequest *storeRequest = [NSMutableURLRequest requestWithURL:storeURL];
     [storeRequest setHTTPMethod:@"POST"];
     [storeRequest setHTTPBody:requestData];
@@ -178,27 +192,21 @@
             
             NSError *error;
             NSDictionary *jsonResponse = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
-           
+            
             if (!jsonResponse) {//为空
-               
+                
                 if (self.failTransaction) {
                     
                     self.failTransaction (@"验证失败");
                 }
-
             } else {
-            
-                [self checkPayForReciept:jsonResponse receipt:receiptCode];
+                
+                [self checkPayForReciept:jsonResponse receipt:receiptCode url:url];
             }
         }
     }];
-    
-    
-    [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
 }
-
-
-- (void) checkPayForReciept:(NSDictionary *)jsonResponse receipt:(NSString *)receipt {
+- (void) checkPayForReciept:(NSDictionary *)jsonResponse receipt:(NSString *)receipt url:(NSString *)url {
     
     NSUInteger status = [[jsonResponse objectForKey:@"status"] integerValue];
     
@@ -206,34 +214,37 @@
     switch (status) {
             
         case 0: {//验证成功
-            NSString *temp = [NSString stringWithFormat:@"%@#",AppStore];
             
-            message = [temp stringByAppendingString:receipt];
+//            NSString *temp = [NSString stringWithFormat:@"%@#", url];
+//            message = [temp stringByAppendingString:receipt];
+            if (self.purchaseBlock) {
+                self.purchaseBlock (receipt);
+            }
         } break;
             
         case 21007://使用的是沙盒测试账号, 但是线上环境
         {
-            NSString *temp = [NSString stringWithFormat:@"%@#",SANDBOX];
+//            NSString *temp = [NSString stringWithFormat:@"%@#",SANDBOX];
+//            message = [temp stringByAppendingString:receipt];
+            [self requestReceipt:SANDBOX];
             
-            message = [temp stringByAppendingString:receipt];
         }
             break;
         case 21008://使用的是线上账号, 但是沙盒测试环境
         {
-            
-            NSString *temp = [NSString stringWithFormat:@"%@#",AppStore];
-            
-            message = [temp stringByAppendingString:receipt];
+//            NSString *temp = [NSString stringWithFormat:@"%@#",url];
+//            message = [temp stringByAppendingString:receipt];
+            if (self.purchaseBlock) {
+                self.purchaseBlock (receipt);
+            }
         }
             break;
             
         default:
             break;
     }
+    BLLog(@"^^^^^^^^^^^^%@", message);
     
-    if (self.purchaseBlock) {
-        self.purchaseBlock (message);
-    }
 }
 
 - (void)failedTransaction:(SKPaymentTransaction *)transaction {
@@ -247,7 +258,7 @@
         descrip = @"交易取消";
     }
     
-    NSLog(@"----%@", descrip);
+    BLLog(@"----%@", descrip);
     
     if (self.failTransaction) {
         
@@ -257,10 +268,11 @@
     [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
     
 }
+
 #pragma mark--------内购结束---------
 - (void)restoreTransaction:(SKPaymentTransaction *)transaction
 {
-    NSLog(@"----内购结束----");
+    BLLog(@"----内购结束----");
     /// 对于已购商品，处理恢复购买的逻辑
     [[SKPaymentQueue defaultQueue] finishTransaction: transaction];
 }
@@ -270,7 +282,8 @@
 {
     [[SKPaymentQueue defaultQueue] removeTransactionObserver:self];
     
-    NSLog(@"---SKPaymentQueue---dealloc---");
+    BLLog(@"---SKPaymentQueue---dealloc---");
 }
 
 @end
+
